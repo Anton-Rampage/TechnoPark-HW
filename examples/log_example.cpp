@@ -1,4 +1,4 @@
-#include <Logger.h>
+#include "Logger.h"
 #include <iostream>
 #include "LogSettings.h"
 
@@ -9,16 +9,17 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     try {
-        auto& LOG = logger::Logger::get_instance();
+        logger::Logger& LOG = logger::Logger::get_instance();
         if (settings.get_stream() == LogStream::STDOUT) {
-            auto stdout_log = logger::create_stdout_logger(settings.get_level());
-            LOG.set_global_logger(stdout_log);
+            std::unique_ptr<logger::BaseLogger> stdout_log = logger::create_stdout_logger(settings.get_level());
+            LOG.set_global_logger(std::move(stdout_log));
         } else if (settings.get_stream() == LogStream::STDERR) {
-            auto stderr_log = logger::create_stderr_logger(settings.get_level());
-            LOG.set_global_logger(stderr_log);
+            std::unique_ptr<logger::BaseLogger> stderr_log = logger::create_stderr_logger(settings.get_level());
+            LOG.set_global_logger(std::move(stderr_log));
         } else if (settings.get_stream() == LogStream::FILE) {
-            auto file_log = logger::create_file_logger(settings.get_level(), settings.get_path());
-            LOG.set_global_logger(file_log);
+            std::unique_ptr<logger::BaseLogger> file_log = logger::create_file_logger(settings.get_level(),
+                                                                                      settings.get_path());
+            LOG.set_global_logger(std::move(file_log));
         }
         logger::debug("check debug");
         logger::info("check info");

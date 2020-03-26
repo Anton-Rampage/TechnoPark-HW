@@ -1,7 +1,7 @@
 #ifndef EXAMPLES_LOGSETTINGS_H_
 #define EXAMPLES_LOGSETTINGS_H_
 
-#include <Logger.h>
+#include "Logger.h"
 
 enum class LogStream {
     STDOUT,
@@ -11,7 +11,7 @@ enum class LogStream {
 
 class LogSettings {
  public:
-    explicit LogSettings(logger::Level level = logger::WARN,
+    explicit LogSettings(logger::Level level = logger::Level::WARN,
                          LogStream stream = LogStream::STDOUT,
                          std::string file_path = "log.txt");
 
