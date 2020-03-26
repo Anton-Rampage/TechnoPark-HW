@@ -1,5 +1,5 @@
-#ifndef LOGGER_LOGGER_H
-#define LOGGER_LOGGER_H
+#ifndef INCLUDE_LOGGER_H_
+#define INCLUDE_LOGGER_H_
 
 #include <string>
 #include <memory>
@@ -43,7 +43,7 @@ class Logger {
  private:
     Logger() = default;
     ~Logger() = default;
- private:
+
     std::shared_ptr<BaseLogger> _global_logger;
 };
 
@@ -64,7 +64,7 @@ class BaseLogger {
     virtual void flush() = 0;
  private:
     virtual void log(const std::string& str, Level level) = 0;
- private:
+
     Level _level;
 };
 
@@ -76,10 +76,8 @@ class FileLogger : public BaseLogger {
     void flush() override;
  private:
     void log(const std::string &str, Level log_level) override;
- private:
+
     std::ofstream _log_file;
-
-
 };
 
 
@@ -107,6 +105,6 @@ std::shared_ptr<BaseLogger> create_file_logger(Level level, const std::string& f
 std::shared_ptr<BaseLogger> create_stdout_logger(Level level);
 
 std::shared_ptr<BaseLogger> create_stderr_logger(Level level);
-}
+}  // namespace logger
 
-#endif //LOGGER_LOGGER_H
+#endif  // INCLUDE_LOGGER_H_
