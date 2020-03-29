@@ -1,5 +1,5 @@
-#ifndef PROJECT_STDOUTLOGGER_H
-#define PROJECT_STDOUTLOGGER_H
+#ifndef INCLUDE_LOGGER_STDOUTLOGGER_H_
+#define INCLUDE_LOGGER_STDOUTLOGGER_H_
 
 #include "BaseLogger.h"
 
@@ -7,11 +7,10 @@ namespace logger {
 class StdoutLogger : public BaseLogger {
  public:
     explicit StdoutLogger(Level level);
-    ~StdoutLogger() override = default;
     void flush() override;
  private:
     void log(const std::string &str, Level log_level) override;
 };
-}
+}  // namespace logger
 
-#endif //PROJECT_STDOUTLOGGER_H
+#endif  // INCLUDE_LOGGER_STDOUTLOGGER_H_

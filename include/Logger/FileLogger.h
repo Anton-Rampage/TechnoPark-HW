@@ -1,8 +1,8 @@
-#ifndef PROJECT_FILELOGGER_H
-#define PROJECT_FILELOGGER_H
+#ifndef INCLUDE_LOGGER_FILELOGGER_H_
+#define INCLUDE_LOGGER_FILELOGGER_H_
 
 #include "BaseLogger.h"
-#include "fstream"
+#include <fstream>
 
 namespace logger {
 class FileLogger : public BaseLogger {
@@ -14,6 +14,6 @@ class FileLogger : public BaseLogger {
     void log(const std::string &str, Level log_level) override;
     std::ofstream _log_file;
 };
-}
+}  // namespace logger
 
-#endif //PROJECT_FILELOGGER_H
+#endif  // INCLUDE_LOGGER_FILELOGGER_H_

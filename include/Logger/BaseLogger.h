@@ -1,7 +1,8 @@
-#ifndef PROJECT_BASELOGGER_H
-#define PROJECT_BASELOGGER_H
+#ifndef INCLUDE_LOGGER_BASELOGGER_H_
+#define INCLUDE_LOGGER_BASELOGGER_H_
 
 #include <string>
+#include <exception>
 
 
 namespace logger {
@@ -23,19 +24,14 @@ class LogException : public std::exception {
 class BaseLogger {
  public:
     explicit BaseLogger(Level level);
-
     virtual ~BaseLogger() = default;
 
     void debug(const std::string &str);
-
     void info(const std::string &str);
-
     void warn(const std::string &str);
-
     void error(const std::string &str);
 
     void set_level(Level level);
-
     Level level();
 
     virtual void flush() = 0;
@@ -45,6 +41,6 @@ class BaseLogger {
 
     Level _level;
 };
-}
+}  // namespace logger
 
-#endif //PROJECT_BASELOGGER_H
+#endif  // INCLUDE_LOGGER_BASELOGGER_H_

@@ -32,4 +32,4 @@ LogException::LogException(std::string error) : _error(std::move(error)) {}
 const char *LogException::what() const noexcept {
     return _error.c_str();
 }
-}
+}  // namespace logger

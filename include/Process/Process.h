@@ -1,5 +1,5 @@
-#ifndef INCLUDE_PROCESS_H_
-#define INCLUDE_PROCESS_H_
+#ifndef INCLUDE_PROCESS_PROCESS_H_
+#define INCLUDE_PROCESS_PROCESS_H_
 
 #include <string>
 #include <exception>
@@ -65,4 +65,4 @@ class Process {
 };
 }  // namespace process
 
-#endif  // INCLUDE_PROCESS_H_
+#endif  // INCLUDE_PROCESS_PROCESS_H_

@@ -13,6 +13,4 @@ void StderrLogger::log(const std::string &str, Level log_level) {
         std::cerr << str << std::endl;
     }
 }
-}
-
-
+}  // namespace logger

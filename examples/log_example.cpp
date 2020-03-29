@@ -11,13 +11,13 @@ int main(int argc, char *argv[]) {
     try {
         logger::Logger& LOG = logger::Logger::get_instance();
         if (settings.get_stream() == LogStream::STDOUT) {
-            std::unique_ptr<logger::BaseLogger> stdout_log = logger::create_stdout_logger(settings.get_level());
+            logger::BaseLoggerPtr stdout_log = logger::create_stdout_logger(settings.get_level());
             LOG.set_global_logger(std::move(stdout_log));
         } else if (settings.get_stream() == LogStream::STDERR) {
-            std::unique_ptr<logger::BaseLogger> stderr_log = logger::create_stderr_logger(settings.get_level());
+            logger::BaseLoggerPtr stderr_log = logger::create_stderr_logger(settings.get_level());
             LOG.set_global_logger(std::move(stderr_log));
         } else if (settings.get_stream() == LogStream::FILE) {
-            std::unique_ptr<logger::BaseLogger> file_log = logger::create_file_logger(settings.get_level(),
+            logger::BaseLoggerPtr file_log = logger::create_file_logger(settings.get_level(),
                                                                                       settings.get_path());
             LOG.set_global_logger(std::move(file_log));
         }
@@ -31,4 +31,3 @@ int main(int argc, char *argv[]) {
     }
     return 0;
 }
-

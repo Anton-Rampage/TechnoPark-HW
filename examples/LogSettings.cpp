@@ -98,7 +98,3 @@ int set_settings(int argc, char **argv, LogSettings& settings) {
 
     return 0;
 }
-
-
-
-

@@ -22,4 +22,4 @@ void FileLogger::flush() {
 FileLogger::~FileLogger() {
     _log_file.close();
 }
-}
+}  // namespace logger
