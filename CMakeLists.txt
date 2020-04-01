@@ -8,5 +8,8 @@ add_subdirectory(src/Process)
 #lib log
 add_subdirectory(src/Logger)
 
+#lib tcp
+add_subdirectory(src/tcp)
+
 #examples
 add_subdirectory(examples)

@@ -11,7 +11,7 @@ FileLogger::FileLogger(Level level, const std::string &filename)
 
 void FileLogger::log(const std::string &str, Level log_level) {
     if (log_level <= level()) {
-        _log_file << str << std::endl;
+        _log_file << level_str[static_cast<int>(log_level) - 1] << ' ' << str << std::endl;
     }
 }
 

@@ -3,6 +3,7 @@
 
 #include <string>
 #include <exception>
+#include <array>
 
 
 namespace logger {
@@ -12,6 +13,8 @@ enum class Level : int {
     WARN = 2,
     ERROR = 1
 };
+
+static std::array<std::string, 4> level_str = {"[ERROR]", "[WARN]", "[INFO]", "[DEBUG]"};
 
 class LogException : public std::exception {
  public:
