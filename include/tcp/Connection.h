@@ -30,6 +30,8 @@ class Connection {
     void write_exact(const void *data, size_t len);
     void read_exact(void *data, size_t len);
 
+    void set_timeout(int num);
+
     bool is_readable();
 
     std::string get_src_ip() const;

@@ -26,26 +26,26 @@ void Connection::connect(const std::string& ip, int port) {
     if (fd < 0) {
         throw TcpException("socket not created");
     }
-
+    close();
+    _fd = fd;
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     inet_aton(ip.c_str(), &addr.sin_addr);
 
-    if (::connect(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
-        ::close(fd);
+    if (::connect(_fd.get(), reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
         throw TcpException("not connected");
     }
 
     sockaddr_in client_addr{};
     int client_addr_size = sizeof(client_addr);
-    if (getsockname(fd,
+    if (getsockname(_fd.get(),
                     reinterpret_cast<sockaddr *>(&client_addr),
                     reinterpret_cast<socklen_t *>(&client_addr_size)) < 0) {
         throw TcpException("client info not received");
     }
-    close();
-    _fd = fd;
+    set_timeout(2);
+
     _dst_ip = ip;
     _dst_port = port;
     _src_ip = inet_ntoa(client_addr.sin_addr);
@@ -118,5 +118,26 @@ Connection::Connection(int fd, std::string dst_ip, int dst_port,
     , _dst_ip(std::move(dst_ip)), _dst_port(dst_port)
     , _src_ip(std::move(src_ip)), _src_port(src_port)
     , _readable(true) {}
+
+void Connection::set_timeout(int num) {
+    timeval timeout{.tv_sec = num,
+                    .tv_usec = 0};
+
+    if (setsockopt(_fd.get(),
+                   SOL_SOCKET,
+                   SO_SNDTIMEO,
+                   &timeout,
+                   sizeof(timeout)) < 0) {
+        throw TcpException("set timeout for write failed");
+    }
+
+    if (setsockopt(_fd.get(),
+                   SOL_SOCKET,
+                   SO_RCVTIMEO,
+                   &timeout,
+                   sizeof(timeout)) < 0) {
+        throw TcpException("set timeout for read failed");
+    }
+}
 
 }  // namespace tcp

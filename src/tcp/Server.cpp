@@ -19,23 +19,19 @@ void Server::open(const std::string &ip, int port) {
     if (fd < 0) {
         throw TcpException("socket not created");
     }
+    _fd = fd;
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     inet_aton(ip.c_str(), &addr.sin_addr);
 
-    if (bind(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
-        ::close(fd);
+    if (bind(_fd.get(), reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
         throw TcpException("bind failed");
     }
 
-    if (listen(fd, 10) < 0) {
-        ::close(fd);
-        throw TcpException("listen failed");
-    }
+    set_max_connect(10);
 
-    _fd = fd;
     _opened = true;
 }
 
