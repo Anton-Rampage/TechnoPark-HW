@@ -22,9 +22,6 @@ class Connection {
     ~Connection() noexcept;
     void close();
 
-    Connection(int fd, std::string dst_ip, int dst_port,
-                       std::string src_ip, int src_port);
-
     size_t write(const void *data, size_t len);
     size_t read(void *data, size_t len);
     void write_exact(const void *data, size_t len);
@@ -38,7 +35,12 @@ class Connection {
     uint16_t get_src_port() const;
     std::string get_dst_ip() const;
     uint16_t get_dst_port() const;
+
  private:
+    friend class Server;
+    Connection(int fd, std::string dst_ip, int dst_port,
+                       std::string src_ip, int src_port);
+
     process::Descriptor _fd;
     std::string _src_ip;
     uint16_t _src_port;

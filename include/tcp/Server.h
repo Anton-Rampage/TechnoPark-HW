@@ -6,6 +6,7 @@
 
 namespace tcp {
 using ConnectionPtr = std::unique_ptr<Connection>;
+
 class Server {
  public:
     Server(const std::string& ip, int port);
@@ -18,7 +19,10 @@ class Server {
     void set_max_connect(int num);
 
     ConnectionPtr accept();
+
  private:
+    friend Connection::Connection(int fd, std::string dst_ip, int dst_port,
+                                          std::string src_ip, int src_port);
     process::Descriptor _fd;
     bool _opened;
 };

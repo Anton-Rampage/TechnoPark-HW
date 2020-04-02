@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <cerrno>
 #include <cstring>
+#include <iostream>
 
 
 namespace tcp {
@@ -117,7 +118,9 @@ Connection::Connection(int fd, std::string dst_ip, int dst_port,
     : _fd(fd)
     , _dst_ip(std::move(dst_ip)), _dst_port(dst_port)
     , _src_ip(std::move(src_ip)), _src_port(src_port)
-    , _readable(true) {}
+    , _readable(true) {
+    set_timeout(2);
+}
 
 void Connection::set_timeout(int num) {
     timeval timeout{.tv_sec = num,

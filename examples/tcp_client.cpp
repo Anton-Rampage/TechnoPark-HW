@@ -13,8 +13,8 @@ int main() {
         logger::info("dst_port: " + std::to_string(con_1.get_dst_port()));
 
         std::string write_data = "hello";
-        con_1.write(write_data.c_str(), write_data.size());
-        con_2.write(write_data.c_str(), write_data.size());
+        logger::debug("send 1: " + std::to_string(con_1.write(write_data.c_str(), write_data.size() + 1)));
+        logger::debug("send 2: " + std::to_string(con_2.write(write_data.c_str(), write_data.size() + 1)));
 
         char read_data[256]{};
         con_1.read(read_data, sizeof(read_data));

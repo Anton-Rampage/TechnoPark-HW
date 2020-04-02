@@ -71,6 +71,6 @@ ConnectionPtr Server::accept() {
     std::string server_ip = inet_ntoa(server_addr.sin_addr);
     uint16_t server_port = ntohs(server_addr.sin_port);
 
-    return std::make_unique<Connection>(fd, client_ip, client_port, server_ip, server_port);
+    return std::unique_ptr<Connection>(new Connection(fd, client_ip, client_port, server_ip, server_port));
 }
 }  // namespace tcp
