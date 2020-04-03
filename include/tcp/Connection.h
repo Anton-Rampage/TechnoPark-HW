@@ -2,7 +2,7 @@
 #define INCLUDE_TCP_CONNECTION_H_
 
 #include <string>
-#include "Process.h"
+#include "Descriptor.h"
 
 namespace tcp {
 class TcpException : public std::exception {

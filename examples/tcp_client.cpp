@@ -3,9 +3,9 @@
 
 int main() {
     logger::Logger& LOG = logger::Logger::get_instance();
-    logger::BaseLoggerPtr stdout_log = logger::create_stdout_logger(logger::Level::DEBUG);
-    LOG.set_global_logger(std::move(stdout_log));
     try {
+        logger::BaseLoggerPtr stdout_log = logger::create_stdout_logger(logger::Level::DEBUG);
+        LOG.set_global_logger(std::move(stdout_log));
         tcp::Connection con_1 = {"127.0.0.1", 9625};
         tcp::Connection con_2 = {"127.0.0.1", 9625};
         logger::info("first and second connection to");
@@ -24,6 +24,8 @@ int main() {
         logger::debug(std::string("from 2: ") + read_data);
     }
     catch (tcp::TcpException& e) {
+        logger::BaseLoggerPtr stderr_log = logger::create_stderr_logger(logger::Level::ERROR);
+        LOG.set_global_logger(std::move(stderr_log));
         logger::error(e.what());
     }
 }

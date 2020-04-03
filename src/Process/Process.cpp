@@ -96,36 +96,6 @@ const char *ProcessException::what() const noexcept {
     return _error.c_str();
 }
 
-
-Descriptor::Descriptor(int fd) {
-    if (fd == -1) {
-        throw ProcessException("invalid descriptor");
-    }
-    _fd = fd;
-}
-
-Descriptor::~Descriptor() noexcept {
-    close();
-}
-
-void Descriptor::close() {
-    if (_fd != -1) {
-        ::close(_fd);
-        _fd = -1;
-    }
-}
-
-int Descriptor::get() const {
-    return _fd;
-}
-
-Descriptor &Descriptor::operator=(int fd) {
-    _fd = fd;
-    return *this;
-}
-
-Descriptor::Descriptor() : _fd(-1) {}
-
 Pipe::Pipe() {
     int fd[2]{};
     if (pipe(fd) != 0) {
@@ -141,15 +111,10 @@ Pipe::~Pipe() {
 }
 
 int Pipe::move(IO io) {
-    int ret_value = 0;
     if (io == READ) {
-        ret_value = _read.get();
-        _read = -1;
-    } else {
-        ret_value = _write.get();
-        _write = -1;
+        return _read.extract();
     }
-    return ret_value;
+    return _write.extract();
 }
 
 int Pipe::operator[](IO io) {

@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include <cerrno>
 #include <cstring>
-#include <iostream>
 
 
 namespace tcp {
@@ -23,30 +22,27 @@ Connection::Connection(const std::string &ip, int port) {
 }
 
 void Connection::connect(const std::string& ip, int port) {
-    int fd = socket(PF_INET, SOCK_STREAM, 0);
-    if (fd < 0) {
+    process::Descriptor sock(socket(PF_INET, SOCK_STREAM, 0));
+    if (sock < 0) {
         throw TcpException("socket not created");
     }
-    close();
-    _fd = fd;
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     inet_aton(ip.c_str(), &addr.sin_addr);
 
-    if (::connect(_fd.get(), reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
+    if (::connect(sock.get(), reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
         throw TcpException("not connected");
     }
 
     sockaddr_in client_addr{};
     int client_addr_size = sizeof(client_addr);
-    if (getsockname(_fd.get(),
+    if (getsockname(sock.get(),
                     reinterpret_cast<sockaddr *>(&client_addr),
                     reinterpret_cast<socklen_t *>(&client_addr_size)) < 0) {
         throw TcpException("client info not received");
     }
-    set_timeout(2);
-
+    _fd = sock.extract();
     _dst_ip = ip;
     _dst_port = port;
     _src_ip = inet_ntoa(client_addr.sin_addr);

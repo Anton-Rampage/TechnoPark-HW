@@ -3,26 +3,13 @@
 
 #include <string>
 #include <exception>
+#include "Descriptor.h"
 
 namespace process {
 enum IO : int {
     READ = 0,
     WRITE = 1
 };
-
-
-class Descriptor {
- public:
-    explicit Descriptor(int fd);
-    Descriptor();
-    Descriptor& operator=(int fd);
-    void close();
-    int get() const;
-    ~Descriptor() noexcept;
- private:
-    int _fd;
-};
-
 
 class Pipe {
  public:
