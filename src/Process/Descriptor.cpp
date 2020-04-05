@@ -33,10 +33,19 @@ int Descriptor::extract() {
     return ret;
 }
 
-Descriptor::Descriptor(Descriptor && new_fd)  :_fd(new_fd.extract()) {}
+Descriptor::Descriptor(Descriptor&& new_fd) noexcept {
+    close();
+    _fd = new_fd.extract();
+}
 
 bool Descriptor::operator<(int num) {
     return _fd < num;
+}
+
+Descriptor &Descriptor::operator=(Descriptor &&new_fd) noexcept {
+    close();
+    _fd = new_fd.extract();
+    return *this;
 }
 
 }  // namespace process

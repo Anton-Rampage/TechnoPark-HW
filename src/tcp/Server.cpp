@@ -27,9 +27,12 @@ void Server::open(const std::string &ip, int port) {
     if (bind(sock.get(), reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
         throw TcpException("bind failed");
     }
-    _fd = sock.extract();
 
-    set_max_connect(10);
+    if (listen(sock.get(), 10) < 0) {
+        throw TcpException("listen failed");
+    }
+
+    _fd = sock.extract();
     _opened = true;
 }
 
@@ -48,7 +51,7 @@ void Server::set_max_connect(int num) {
     }
 }
 
-ConnectionPtr Server::accept() {
+Connection Server::accept() {
     sockaddr_in client_addr{};
     socklen_t addr_size = sizeof(client_addr);
     process::Descriptor fd{::accept(_fd.get(), reinterpret_cast<sockaddr *>(&client_addr), &addr_size)};
@@ -57,10 +60,10 @@ ConnectionPtr Server::accept() {
     }
 
     sockaddr_in server_addr{};
-    int server_addr_size = sizeof(server_addr);
+    socklen_t server_addr_size = sizeof(server_addr);
     if (getsockname(fd.get(),
                     reinterpret_cast<sockaddr *>(&server_addr),
-                    reinterpret_cast<socklen_t *>(&server_addr_size)) < 0) {
+                    &server_addr_size) < 0) {
         throw TcpException("client data not received");
     }
 
@@ -69,6 +72,7 @@ ConnectionPtr Server::accept() {
     std::string server_ip = inet_ntoa(server_addr.sin_addr);
     uint16_t server_port = ntohs(server_addr.sin_port);
 
-    return std::unique_ptr<Connection>(new Connection(fd.extract(), client_ip, client_port, server_ip, server_port));
+    return Connection(std::move(fd), client_ip, client_port,
+                                     server_ip, server_port);
 }
 }  // namespace tcp

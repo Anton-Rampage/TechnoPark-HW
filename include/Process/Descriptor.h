@@ -4,16 +4,22 @@
 namespace process {
 class Descriptor {
  public:
-    explicit Descriptor(int fd);
     Descriptor();
+    explicit Descriptor(int fd);
     ~Descriptor() noexcept;
-    Descriptor(Descriptor&) = delete;
-    Descriptor(Descriptor&&);
+
+    Descriptor(Descriptor&&) noexcept;
+    Descriptor& operator=(Descriptor&& new_des) noexcept;
+
     Descriptor& operator=(int fd);
+
     void close();
     int get() const;
     int extract();
     bool operator<(int num);
+
+    Descriptor(Descriptor&) = delete;
+    Descriptor& operator=(Descriptor&) = delete;
  private:
     int _fd = -1;
 };

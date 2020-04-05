@@ -22,6 +22,9 @@ class Connection {
     ~Connection() noexcept;
     void close();
 
+    Connection& operator=(Connection&& new_con) noexcept;
+    Connection(Connection&& new_con) noexcept;
+
     size_t write(const void *data, size_t len);
     size_t read(void *data, size_t len);
     void write_exact(const void *data, size_t len);
@@ -38,8 +41,8 @@ class Connection {
 
  private:
     friend class Server;
-    Connection(int fd, std::string dst_ip, int dst_port,
-                       std::string src_ip, int src_port);
+    Connection(process::Descriptor&& fd, const std::string& dst_ip, int dst_port,
+                                         const std::string& src_ip, int src_port);
 
     process::Descriptor _fd;
     std::string _src_ip;

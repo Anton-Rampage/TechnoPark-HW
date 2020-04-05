@@ -36,10 +36,10 @@ void Connection::connect(const std::string& ip, int port) {
     }
 
     sockaddr_in client_addr{};
-    int client_addr_size = sizeof(client_addr);
+    socklen_t client_addr_size = sizeof(client_addr);
     if (getsockname(sock.get(),
                     reinterpret_cast<sockaddr *>(&client_addr),
-                    reinterpret_cast<socklen_t *>(&client_addr_size)) < 0) {
+                    &client_addr_size) < 0) {
         throw TcpException("client info not received");
     }
     _fd = sock.extract();
@@ -76,7 +76,7 @@ uint16_t Connection::get_dst_port() const {
 }
 
 size_t Connection::write(const void *data, size_t len) {
-    auto size = ::write(_fd.get(), data, len);
+    size_t size = ::write(_fd.get(), data, len);
     if (size == -1) {
         throw TcpException("write failed");
     }
@@ -84,9 +84,12 @@ size_t Connection::write(const void *data, size_t len) {
 }
 
 size_t Connection::read(void *data, size_t len) {
-    auto size = ::read(_fd.get(), data, len);
+    size_t size = ::read(_fd.get(), data, len);
     if (size == -1) {
         throw TcpException("read failed");
+    }
+    if (size == 0) {
+        _readable = false;
     }
     return size;
 }
@@ -100,7 +103,7 @@ void Connection::write_exact(const void *data, size_t len) {
 
 void Connection::read_exact(void *data, size_t len) {
     size_t write_length = 0;
-    while (write_length < len) {
+    while (_readable && write_length < len) {
         write_length += read(static_cast<char *>(data) + write_length, len - write_length);
     }
 }
@@ -109,11 +112,11 @@ bool Connection::is_readable() {
     return _readable;
 }
 
-Connection::Connection(int fd, std::string dst_ip, int dst_port,
-                       std::string src_ip, int src_port)
-    : _fd(fd)
-    , _dst_ip(std::move(dst_ip)), _dst_port(dst_port)
-    , _src_ip(std::move(src_ip)), _src_port(src_port)
+Connection::Connection(process::Descriptor&& fd, const std::string& dst_ip, int dst_port,
+                                                 const std::string& src_ip, int src_port)
+    : _fd(std::move(fd))
+    , _dst_ip(dst_ip), _dst_port(dst_port)
+    , _src_ip(src_ip), _src_port(src_port)
     , _readable(true) {
     set_timeout(2);
 }
@@ -139,4 +142,26 @@ void Connection::set_timeout(int num) {
     }
 }
 
+Connection& Connection::operator=(Connection &&new_con) noexcept {
+    close();
+    _fd = std::move(new_con._fd);
+    _dst_ip = new_con.get_dst_ip();
+    _dst_port = new_con.get_dst_port();
+    _src_ip = new_con.get_src_ip();
+    _src_port = new_con.get_src_port();
+    _readable = new_con._readable;
+    new_con.close();
+    return *this;
+}
+
+Connection::Connection(Connection &&new_con) noexcept {
+    close();
+    _fd = std::move(new_con._fd);
+    _dst_ip = new_con.get_dst_ip();
+    _dst_port = new_con.get_dst_port();
+    _src_ip = new_con.get_src_ip();
+    _src_port = new_con.get_src_port();
+    _readable = new_con._readable;
+    new_con.close();
+}
 }  // namespace tcp
