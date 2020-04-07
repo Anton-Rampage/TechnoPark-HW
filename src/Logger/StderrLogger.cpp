@@ -10,7 +10,7 @@ void StderrLogger::flush() {
 
 void StderrLogger::log(const std::string &str, Level log_level) {
     if (log_level <= level()) {
-        std::cerr << str << std::endl;
+        std::cerr << level_str[static_cast<int>(log_level) - 1] << ' ' << str << std::endl;
     }
 }
 }  // namespace logger
