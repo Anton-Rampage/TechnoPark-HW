@@ -95,16 +95,16 @@ size_t Connection::read(void *data, size_t len) {
 }
 
 void Connection::write_exact(const void *data, size_t len) {
-    size_t write_length = 0;
+    ssize_t write_length = 0;
     while (write_length < len) {
         write_length += write(static_cast<const char *>(data) + write_length, len - write_length);
     }
 }
 
 void Connection::read_exact(void *data, size_t len) {
-    size_t write_length = 0;
-    while (_readable && write_length < len) {
-        write_length += read(static_cast<char *>(data) + write_length, len - write_length);
+    ssize_t read_length = 0;
+    while (_readable && read_length < len) {
+        read_length += read(static_cast<char *>(data) + read_length, len - read_length);
     }
 }
 
@@ -112,13 +112,29 @@ bool Connection::is_readable() {
     return _readable;
 }
 
-Connection::Connection(process::Descriptor&& fd, const std::string& dst_ip, int dst_port,
-                                                 const std::string& src_ip, int src_port)
+Connection::Connection(process::Descriptor&& fd)
     : _fd(std::move(fd))
-    , _dst_ip(dst_ip), _dst_port(dst_port)
-    , _src_ip(src_ip), _src_port(src_port)
     , _readable(true) {
-    set_timeout(2);
+    sockaddr_in self_addr{};
+    socklen_t self_addr_size = sizeof(self_addr);
+    if (getsockname(_fd.get(),
+                    reinterpret_cast<sockaddr *>(&self_addr),
+                    &self_addr_size) < 0) {
+        throw TcpException("getsockname failed");
+    }
+
+    sockaddr_in con_addr{};
+    socklen_t con_addr_size = sizeof(self_addr);
+    if (getpeername(_fd.get(),
+                    reinterpret_cast<sockaddr *>(&con_addr),
+                    &con_addr_size) < 0) {
+        throw TcpException("getpeername failed");
+    }
+
+    _dst_ip = inet_ntoa(con_addr.sin_addr);
+    _dst_port = ntohs(con_addr.sin_port);
+    _src_ip = inet_ntoa(self_addr.sin_addr);
+    _src_port = ntohs(self_addr.sin_port);
 }
 
 void Connection::set_timeout(int num) {
@@ -143,6 +159,9 @@ void Connection::set_timeout(int num) {
 }
 
 Connection& Connection::operator=(Connection &&new_con) noexcept {
+    if (this == &new_con) {
+        return *this;
+    }
     close();
     _fd = std::move(new_con._fd);
     _dst_ip = new_con.get_dst_ip();
@@ -155,6 +174,9 @@ Connection& Connection::operator=(Connection &&new_con) noexcept {
 }
 
 Connection::Connection(Connection &&new_con) noexcept {
+    if (this == &new_con) {
+        return;
+    }
     close();
     _fd = std::move(new_con._fd);
     _dst_ip = new_con.get_dst_ip();
@@ -164,4 +186,8 @@ Connection::Connection(Connection &&new_con) noexcept {
     _readable = new_con._readable;
     new_con.close();
 }
+void *Connection::get_cache() {
+    return _cache;
+}
+
 }  // namespace tcp

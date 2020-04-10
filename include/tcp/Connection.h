@@ -16,6 +16,7 @@ class TcpException : public std::exception {
 
 class Connection {
  public:
+    Connection() = default;
     Connection(const std::string& ip, int port);
     void connect(const std::string& ip, int port);
 
@@ -24,6 +25,8 @@ class Connection {
 
     Connection& operator=(Connection&& new_con) noexcept;
     Connection(Connection&& new_con) noexcept;
+    Connection(Connection&) = delete;
+    Connection& operator=(Connection& new_con) = delete;
 
     size_t write(const void *data, size_t len);
     size_t read(void *data, size_t len);
@@ -39,17 +42,22 @@ class Connection {
     std::string get_dst_ip() const;
     uint16_t get_dst_port() const;
 
+    void * get_cache();
+
  private:
     friend class Server;
-    Connection(process::Descriptor&& fd, const std::string& dst_ip, int dst_port,
-                                         const std::string& src_ip, int src_port);
+    friend class EpollServer;
+    Connection(process::Descriptor&& fd);
+
 
     process::Descriptor _fd;
     std::string _src_ip;
-    uint16_t _src_port;
+    uint16_t _src_port = 0;
     std::string _dst_ip;
-    uint16_t _dst_port;
-    bool _readable;
+    uint16_t _dst_port = 0;
+    bool _readable = false;
+
+    void *_cache = nullptr;
 };
 }  // namespace tcp
 
