@@ -8,7 +8,7 @@
 
 namespace tcp {
 using callback = std::function<void(Connection&)>;
-using read_write_cb = std::array<callback, 2>;
+using read_write_cb = std::array<callback, 3>;
 class EpollServer {
  public:
     explicit EpollServer(uint32_t port, read_write_cb& handler);

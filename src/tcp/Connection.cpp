@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <cerrno>
 #include <cstring>
+#include <vector>
 
 
 namespace tcp {
@@ -48,6 +49,7 @@ void Connection::connect(const std::string& ip, int port) {
     _src_ip = inet_ntoa(client_addr.sin_addr);
     _src_port = ntohs(client_addr.sin_port);
     _readable = true;
+    _writable = true;
 }
 
 void Connection::close() {
@@ -114,7 +116,8 @@ bool Connection::is_readable() {
 
 Connection::Connection(process::Descriptor&& fd)
     : _fd(std::move(fd))
-    , _readable(true) {
+    , _readable(true)
+    , _writable(true) {
     sockaddr_in self_addr{};
     socklen_t self_addr_size = sizeof(self_addr);
     if (getsockname(_fd.get(),
@@ -169,6 +172,7 @@ Connection& Connection::operator=(Connection &&new_con) noexcept {
     _src_ip = new_con.get_src_ip();
     _src_port = new_con.get_src_port();
     _readable = new_con._readable;
+    _writable = new_con._writable;
     new_con.close();
     return *this;
 }
@@ -184,10 +188,52 @@ Connection::Connection(Connection &&new_con) noexcept {
     _src_ip = new_con.get_src_ip();
     _src_port = new_con.get_src_port();
     _readable = new_con._readable;
+    _writable = new_con._writable;
     new_con.close();
 }
-void *Connection::get_cache() {
-    return _cache;
+char * Connection::get_cache_read() {
+    return _cache_read.data();
+}
+
+char * Connection::get_cache_write() {
+    return _cache_write.data();
+}
+
+void Connection::set_cache_size(size_t read, size_t write, void *write_data) {
+    _cache_read_size = read;
+    _cache_write_size = write;
+    _cache_write = std::vector<char>(static_cast<char *>(write_data),
+                                static_cast<char *>(write_data) + write);
+}
+
+void Connection::add_cache_read(void *add, size_t size) {
+    std::vector<char> new_buf(static_cast<char *>(add), static_cast<char *>(add) + size);
+    _cache_read.insert(_cache_read.end(), new_buf.begin(), new_buf.end());
+    _cache_read_size -= size;
+    if (_cache_read_size == 0) {
+        _readable = false;
+    }
+}
+
+void Connection::del_cache_write(size_t size) {
+    std::vector new_buf(_cache_write.begin() + size, _cache_write.end());
+    _cache_write.swap(new_buf);
+    _cache_write_size -= size;
+    if (_cache_write_size == 0) {
+        _writable = false;
+    }
+}
+
+size_t Connection::get_cache_size_read() {
+    return _cache_read_size;
+}
+
+size_t Connection::get_cache_size_write() {
+    return _cache_write_size;
+}
+
+bool Connection::is_writable() {
+    return _writable;
 }
 
 }  // namespace tcp

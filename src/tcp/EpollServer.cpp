@@ -79,15 +79,21 @@ void EpollServer::event_loop(size_t epoll_size) {
             } else {
                 if (ev & EPOLLIN) {
                     _handler[0](connections[fd]);
-                    epoll_action(fd, EPOLLOUT, EPOLL_CTL_MOD);
-                    events[i].events = EPOLLOUT;
+
+                    if (connections[fd].is_writable()) {
+                        epoll_action(fd, EPOLLOUT, EPOLL_CTL_MOD);
+                    } else if (!connections[fd].is_readable() && !connections[fd].is_writable()){
+                        epoll_action(fd, EPOLLIN, EPOLL_CTL_DEL);
+                        connections.erase(fd);
+                    }
                 } else if (ev & EPOLLOUT) {
                     _handler[1](connections[fd]);
+
                     if (connections[fd].is_readable()) {
                         epoll_action(fd, EPOLLIN, EPOLL_CTL_MOD);
-                    } else {
-                        epoll_action(fd, EPOLLIN, EPOLL_CTL_DEL);
-                        connections.extract(fd);
+                    } else if (!connections[fd].is_readable() && !connections[fd].is_writable()){
+                        epoll_action(fd, EPOLLOUT, EPOLL_CTL_DEL);
+                        connections.erase(fd);
                     }
                 }
             }
@@ -113,9 +119,11 @@ void EpollServer::accept() {
             throw TcpException("accept4 failed");
         }
         epoll_action(fd.get(), EPOLLIN, EPOLL_CTL_ADD);
-        int cache_fd = fd.get();
+
+        int buf_fd = fd.get();
         Connection connection(std::move(fd));
-        connections.insert(std::pair<int, Connection>(cache_fd, std::move(connection)));
+        connections.insert(std::pair<int, Connection>(buf_fd, std::move(connection)));
+        _handler[2](connections[buf_fd]);
     }
 }
 }  // namespace tcp
