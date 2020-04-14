@@ -13,3 +13,6 @@ add_subdirectory(src/tcp)
 
 #examples
 add_subdirectory(examples)
+
+#shmem
+add_subdirectory(include/shmem)

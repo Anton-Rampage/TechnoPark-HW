@@ -13,3 +13,7 @@ target_link_libraries(tcp_server tcp logger)
 
 add_executable(tcp_client tcp_client.cpp)
 target_link_libraries(tcp_client tcp logger)
+
+#shmem_example
+add_executable(shmem_example shmem_example.cpp)
+target_link_libraries(shmem_example shmem logger)
