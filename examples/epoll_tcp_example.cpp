@@ -5,9 +5,9 @@
 int main() {
     logger::Logger& LOG = logger::Logger::get_instance();
     char read[] = "Hello! By!";
-    char write_data[] = "Hello! By!";
-    tcp::callback create_handler = [&write_data](tcp::Connection& con) {
-        con.set_cache_size(sizeof(read), sizeof(write_data), static_cast<void *>(write_data));
+    tcp::callback create_handler = [](tcp::Connection& con) {
+        char write_data[] = "Hello! By!";
+        con.set_cache_size(sizeof(read), sizeof(write_data), write_data);
         logger::info("new connection");
         logger::info("dst_ip: " + con.get_dst_ip());
         logger::info("dst_port: " + std::to_string(con.get_dst_port()));
@@ -18,6 +18,7 @@ int main() {
         size_t len = con.read(read_data, sizeof(con.get_cache_size_read()));
         con.add_cache_read(read_data, len);
         logger::debug(std::string("read: ") + read_data);
+        delete[] read_data;
     };
 
     tcp::callback write_handler = [](tcp::Connection& con) {
@@ -26,7 +27,7 @@ int main() {
         logger::debug(std::string("send: ") + std::to_string(len));
     };
 
-    tcp::read_write_cb handlers = {read_handler, write_handler, create_handler};
+    tcp::Handlers handlers = {create_handler, read_handler, write_handler};
     try {
         LOG.set_global_logger(create_stdout_logger(logger::Level::DEBUG));
         tcp::EpollServer serv(9625, handlers);

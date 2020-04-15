@@ -5,16 +5,15 @@
 
 namespace tcp {
 
-EpollServer::EpollServer(uint32_t port, read_write_cb& handler) {
-    process::Descriptor epoll(epoll_create(1));
-    if (epoll < 0) {
+EpollServer::EpollServer(uint32_t port, Handlers& handlers) {
+    _epoll_fd = process::Descriptor(epoll_create(1));
+    if (_epoll_fd < 0) {
         throw TcpException("epoll not created");
     }
-    _epoll_fd = epoll.extract();
-    open(port, handler);
+    open(port, handlers);
 }
 
-void EpollServer::open(uint32_t port, read_write_cb& handler) {
+void EpollServer::open(uint32_t port, Handlers& handlers) {
     process::Descriptor serv(socket(PF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0));
     if (serv < 0) {
         throw TcpException("socket not created");
@@ -28,8 +27,8 @@ void EpollServer::open(uint32_t port, read_write_cb& handler) {
         throw TcpException("bind failed");
     }
 
-    constexpr size_t QUEUE_SIZE = 256;
-    if (listen(serv.get(), QUEUE_SIZE) < 0) {
+    constexpr size_t MAX_CONNECTIONS = 256;
+    if (listen(serv.get(), MAX_CONNECTIONS) < 0) {
         throw TcpException("listen failed");
     }
 
@@ -37,7 +36,7 @@ void EpollServer::open(uint32_t port, read_write_cb& handler) {
 
     _server_fd = serv.extract();
     _opened = true;
-    _handler = handler;
+    _handlers = handlers;
 }
 
 void EpollServer::epoll_action(int fd, uint32_t events, int action) {
@@ -58,12 +57,13 @@ EpollServer::~EpollServer() {
 void EpollServer::close() {
     epoll_action(_server_fd.get(), EPOLLIN, EPOLL_CTL_DEL);
     _server_fd.close();
+    _opened = false;
 }
 
 void EpollServer::event_loop(size_t epoll_size) {
-    epoll_event events[25];
+    std::vector<epoll_event> events(epoll_size);
     while (true) {
-        int nfds = epoll_wait(_epoll_fd.get(), events, epoll_size, -1);
+        int nfds = epoll_wait(_epoll_fd.get(), events.data(), epoll_size, -1);
         if (nfds < 0) {
             if (errno == EINTR) {
                 continue;
@@ -73,29 +73,11 @@ void EpollServer::event_loop(size_t epoll_size) {
 
         for(size_t i = 0; i < nfds; ++i) {
             int fd = events[i].data.fd;
-            auto ev = events[i].events;
+            uint32_t ev = events[i].events;
             if (fd == _server_fd.get()) {
                 accept();
             } else {
-                if (ev & EPOLLIN) {
-                    _handler[0](connections[fd]);
-
-                    if (connections[fd].is_writable()) {
-                        epoll_action(fd, EPOLLOUT, EPOLL_CTL_MOD);
-                    } else if (!connections[fd].is_readable() && !connections[fd].is_writable()){
-                        epoll_action(fd, EPOLLIN, EPOLL_CTL_DEL);
-                        connections.erase(fd);
-                    }
-                } else if (ev & EPOLLOUT) {
-                    _handler[1](connections[fd]);
-
-                    if (connections[fd].is_readable()) {
-                        epoll_action(fd, EPOLLIN, EPOLL_CTL_MOD);
-                    } else if (!connections[fd].is_readable() && !connections[fd].is_writable()){
-                        epoll_action(fd, EPOLLOUT, EPOLL_CTL_DEL);
-                        connections.erase(fd);
-                    }
-                }
+                handle_client(fd, ev);
             }
         }
     }
@@ -122,8 +104,38 @@ void EpollServer::accept() {
 
         int buf_fd = fd.get();
         Connection connection(std::move(fd));
-        connections.insert(std::pair<int, Connection>(buf_fd, std::move(connection)));
-        _handler[2](connections[buf_fd]);
+        _connections.insert(std::pair<int, Connection>(buf_fd, std::move(connection)));
+        _handlers.create(_connections[buf_fd]);
+    }
+}
+
+void EpollServer::handle_client(int fd, uint32_t event) {
+    if (event & EPOLLERR || event & EPOLLHUP) {
+        epoll_action(fd, 0, EPOLL_CTL_DEL);
+        _connections.erase(fd);
+    }
+    if (event & EPOLLIN) {
+        _handlers.read(_connections[fd]);
+
+        if (_connections[fd].is_writable()) {
+            epoll_action(fd, EPOLLOUT, EPOLL_CTL_MOD);
+        }
+    } else if (event & EPOLLOUT) {
+        _handlers.write(_connections[fd]);
+
+        if (_connections[fd].is_readable()) {
+            epoll_action(fd, EPOLLIN, EPOLL_CTL_MOD);
+        }
+    }
+    if (!_connections[fd].is_readable() && !_connections[fd].is_writable()){
+        epoll_action(fd, 0, EPOLL_CTL_DEL);
+        _connections.erase(fd);
+    }
+}
+
+void EpollServer::set_max_connections(size_t size) {
+    if (listen(_server_fd.get(), size) < 0) {
+        throw TcpException("listen failed");
     }
 }
 }  // namespace tcp

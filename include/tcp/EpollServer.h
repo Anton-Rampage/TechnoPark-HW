@@ -8,23 +8,32 @@
 
 namespace tcp {
 using callback = std::function<void(Connection&)>;
+class Handlers {
+ public:
+    callback create;
+    callback read;
+    callback write;
+};
+
 using read_write_cb = std::array<callback, 3>;
 class EpollServer {
  public:
-    explicit EpollServer(uint32_t port, read_write_cb& handler);
-    void open(uint32_t port, read_write_cb& handler);
+    explicit EpollServer(uint32_t port, Handlers& handlers);
+    void open(uint32_t port, Handlers& handlers);
     ~EpollServer();
     void close();
     void event_loop(size_t epoll_size);
+    void set_max_connections(size_t size);
 
  private:
     void accept();
+    void handle_client(int fd, uint32_t event);
     void epoll_action(int fd, uint32_t events, int action);
     process::Descriptor _server_fd;
     process::Descriptor _epoll_fd;
-    bool _opened;
-    read_write_cb _handler;
-    std::map<int, Connection> connections;
+    bool _opened = false;
+    Handlers _handlers;
+    std::map<int, Connection> _connections;
 };
 
 }  // namespace tcp
