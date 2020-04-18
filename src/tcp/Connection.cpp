@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <cerrno>
 #include <cstring>
+#include <vector>
 
 
 namespace tcp {
@@ -48,6 +49,7 @@ void Connection::connect(const std::string& ip, int port) {
     _src_ip = inet_ntoa(client_addr.sin_addr);
     _src_port = ntohs(client_addr.sin_port);
     _readable = true;
+    _writable = true;
 }
 
 void Connection::close() {
@@ -95,16 +97,16 @@ size_t Connection::read(void *data, size_t len) {
 }
 
 void Connection::write_exact(const void *data, size_t len) {
-    size_t write_length = 0;
+    ssize_t write_length = 0;
     while (write_length < len) {
         write_length += write(static_cast<const char *>(data) + write_length, len - write_length);
     }
 }
 
 void Connection::read_exact(void *data, size_t len) {
-    size_t write_length = 0;
-    while (_readable && write_length < len) {
-        write_length += read(static_cast<char *>(data) + write_length, len - write_length);
+    ssize_t read_length = 0;
+    while (_readable && read_length < len) {
+        read_length += read(static_cast<char *>(data) + read_length, len - read_length);
     }
 }
 
@@ -112,13 +114,30 @@ bool Connection::is_readable() {
     return _readable;
 }
 
-Connection::Connection(process::Descriptor&& fd, const std::string& dst_ip, int dst_port,
-                                                 const std::string& src_ip, int src_port)
+Connection::Connection(process::Descriptor&& fd)
     : _fd(std::move(fd))
-    , _dst_ip(dst_ip), _dst_port(dst_port)
-    , _src_ip(src_ip), _src_port(src_port)
-    , _readable(true) {
-    set_timeout(2);
+    , _readable(true)
+    , _writable(true) {
+    sockaddr_in self_addr{};
+    socklen_t self_addr_size = sizeof(self_addr);
+    if (getsockname(_fd.get(),
+                    reinterpret_cast<sockaddr *>(&self_addr),
+                    &self_addr_size) < 0) {
+        throw TcpException("getsockname failed");
+    }
+
+    sockaddr_in con_addr{};
+    socklen_t con_addr_size = sizeof(self_addr);
+    if (getpeername(_fd.get(),
+                    reinterpret_cast<sockaddr *>(&con_addr),
+                    &con_addr_size) < 0) {
+        throw TcpException("getpeername failed");
+    }
+
+    _dst_ip = inet_ntoa(con_addr.sin_addr);
+    _dst_port = ntohs(con_addr.sin_port);
+    _src_ip = inet_ntoa(self_addr.sin_addr);
+    _src_port = ntohs(self_addr.sin_port);
 }
 
 void Connection::set_timeout(int num) {
@@ -143,6 +162,9 @@ void Connection::set_timeout(int num) {
 }
 
 Connection& Connection::operator=(Connection &&new_con) noexcept {
+    if (this == &new_con) {
+        return *this;
+    }
     close();
     _fd = std::move(new_con._fd);
     _dst_ip = new_con.get_dst_ip();
@@ -150,11 +172,15 @@ Connection& Connection::operator=(Connection &&new_con) noexcept {
     _src_ip = new_con.get_src_ip();
     _src_port = new_con.get_src_port();
     _readable = new_con._readable;
+    _writable = new_con._writable;
     new_con.close();
     return *this;
 }
 
 Connection::Connection(Connection &&new_con) noexcept {
+    if (this == &new_con) {
+        return;
+    }
     close();
     _fd = std::move(new_con._fd);
     _dst_ip = new_con.get_dst_ip();
@@ -162,6 +188,52 @@ Connection::Connection(Connection &&new_con) noexcept {
     _src_ip = new_con.get_src_ip();
     _src_port = new_con.get_src_port();
     _readable = new_con._readable;
+    _writable = new_con._writable;
     new_con.close();
 }
+char * Connection::get_cache_read() {
+    return _cache_read.data();
+}
+
+char * Connection::get_cache_write() {
+    return _cache_write.data();
+}
+
+void Connection::set_cache_size(size_t read, size_t write, void *write_data) {
+    _cache_read_size = read;
+    _cache_write_size = write;
+    _cache_write = std::vector<char>(static_cast<char *>(write_data),
+                                static_cast<char *>(write_data) + write);
+}
+
+void Connection::add_cache_read(void *add, size_t size) {
+    std::vector<char> new_buf(static_cast<char *>(add), static_cast<char *>(add) + size);
+    _cache_read.insert(_cache_read.end(), new_buf.begin(), new_buf.end());
+    _cache_read_size -= size;
+    if (_cache_read_size == 0) {
+        _readable = false;
+    }
+}
+
+void Connection::del_cache_write(size_t size) {
+    std::vector new_buf(_cache_write.begin() + size, _cache_write.end());
+    _cache_write.swap(new_buf);
+    _cache_write_size -= size;
+    if (_cache_write_size == 0) {
+        _writable = false;
+    }
+}
+
+size_t Connection::get_cache_size_read() {
+    return _cache_read_size;
+}
+
+size_t Connection::get_cache_size_write() {
+    return _cache_write_size;
+}
+
+bool Connection::is_writable() {
+    return _writable;
+}
+
 }  // namespace tcp

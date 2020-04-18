@@ -58,21 +58,6 @@ Connection Server::accept() {
     if (fd < 0) {
         throw TcpException("accept failed");
     }
-
-    sockaddr_in server_addr{};
-    socklen_t server_addr_size = sizeof(server_addr);
-    if (getsockname(fd.get(),
-                    reinterpret_cast<sockaddr *>(&server_addr),
-                    &server_addr_size) < 0) {
-        throw TcpException("client data not received");
-    }
-
-    std::string client_ip = inet_ntoa(client_addr.sin_addr);
-    uint16_t client_port = ntohs(client_addr.sin_port);
-    std::string server_ip = inet_ntoa(server_addr.sin_addr);
-    uint16_t server_port = ntohs(server_addr.sin_port);
-
-    return Connection(std::move(fd), client_ip, client_port,
-                                     server_ip, server_port);
+    return Connection(std::move(fd));
 }
 }  // namespace tcp
