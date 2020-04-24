@@ -15,25 +15,40 @@ struct AllocState {
 template <typename T>
 class Shalloc {
  public:
-    typedef T value_type;
-    Shalloc() noexcept {}
-    Shalloc(AllocState *state);
+    using value_type = T;
+    Shalloc() = default;
+    explicit Shalloc(AllocState *state) : _state(state) {};
     template <typename U>
-    explicit Shalloc<T>(const Shalloc<U>& other) noexcept {
-        this->_state = other.get();
+    explicit Shalloc(const Shalloc<U>& other) noexcept { this->_state = other.get(); }
+
+    T * allocate(size_t n) {
+        char *res = _state->start;
+        if (res + sizeof(T) * n > _state->end) {
+            throw std::bad_alloc{};
+        }
+        _state->start += sizeof(T) * n;
+        return reinterpret_cast<T *>(res);
     }
-    T * allocate(size_t n);
-    void deallocate(T *ptr, size_t n) noexcept;
-    AllocState * get() const;
+
+    void deallocate(T *ptr, size_t n) noexcept {
+        if (_state->start - sizeof(T) * n == reinterpret_cast<char *>(ptr)) {
+            _state->start -= sizeof(T) * n;
+        }
+    }
+
+    [[nodiscard]] AllocState * get() const { return _state; }
 
  private:
-    AllocState *_state = nullptr;
+    AllocState *_state;
 };
+
+template <typename T, typename U>
+bool operator==(const Shalloc<T>& lalloc, const Shalloc<U>& ralloc) { return lalloc.get() == ralloc.get(); }
 
 class SemLock {
  public:
-    explicit SemLock(sem_t* semaphore);
-    ~SemLock();
+    explicit SemLock(sem_t* semaphore) : _sem(semaphore) { ::sem_wait(_sem); }
+    ~SemLock() { sem_post(_sem); }
 
  private:
     sem_t* _sem;
@@ -54,44 +69,8 @@ class Exception : public std::exception {
 };
 
 
-template<typename T>
-Shalloc<T>::Shalloc(AllocState *state) {
-    _state = state;
-}
-
-template<typename T>
-T *Shalloc<T>::allocate(size_t n) {
-    char *res = _state->start;
-    if (res + sizeof(T) * n > _state->end) {
-        throw std::bad_alloc{};
-    }
-    _state->start += sizeof(T) * n;
-    return reinterpret_cast<T *>(res);
-}
-
-template<typename T>
-void Shalloc<T>::deallocate(T *ptr, size_t n) noexcept {
-    if (_state->start - sizeof(T) * n == reinterpret_cast<char *>(ptr)) {
-        _state->start -= sizeof(T) * n;
-    }
-}
-
-template<typename T>
-AllocState *Shalloc<T>::get() const {
-    return _state;
-}
-
-SemLock::SemLock(sem_t *semaphore) : _sem(semaphore) {
-    ::sem_wait(_sem);
-}
-
-SemLock::~SemLock() {
-    sem_post(_sem);
-}
-
-
 
 }  // namespace shmem
 
 
-#endif //SHMEM_SHALLOC_H
+#endif  // SHMEM_SHALLOC_H

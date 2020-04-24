@@ -10,25 +10,25 @@ int main() {
     try {
         LOG.set_global_logger(create_stdout_logger(logger::Level::DEBUG));
 
-        shmem::Map<int, shmem::string> map(4);
+        shmem::Map<int, shmem::string> map(1024);
 
-        int child = fork();
+        pid_t child = fork();
         if (child < 0) {
-            logger::StderrLogger{logger::Level::ERROR}.error("fork failed");
+            throw shmem::Exception("fork failed");
         } else if (child) {
             shmem::SemLock lock(map.get_sem());
-            map.insert(std::pair<int, shmem::string>(3, "tri"));
-            map.insert(std::pair<int, shmem::string>(4, "chetiri"));
+            map[3] = "tri";
+            map[4] = "chetiri";
         } else {
             shmem::SemLock lock(map.get_sem());
-            map.insert(std::pair<int, shmem::string>(1, "odin"));
-            map.insert(std::pair<int, shmem::string>(2, "dva"));
+            map[1] = "odin";
+            map[2] = "dva";
             return 0;
         }
         waitpid(child, nullptr, 0);
         shmem::SemLock lock(map.get_sem());
-        for (const auto &i : *map) {
-            logger::debug(std::to_string(i.first) + ' ' + std::string(i.second));
+        for (const auto& [key, value] : map) {
+            logger::debug(std::to_string(key) + ' ' + std::string(value));
         }
     } catch (shmem::Exception &e) {
         logger::StderrLogger{logger::Level::ERROR}.error(e.what());
