@@ -22,10 +22,10 @@ class Map {
     explicit Map() {
         _parent_pid = getpid();
         auto state = SharedLinearMemory::get_instance().get_state();
-        auto map = reinterpret_cast<TempMap *>(state->start);
+        _map = reinterpret_cast<TempMap *>(state->start);
         state->start = static_cast<char *>(state->start) + sizeof(TempMap);
         auto alloc = Shalloc<elem>();
-        _map = new(map) TempMap{};
+        std::allocator_traits<Shalloc<elem>>::construct(alloc, _map);
     }
 
     ~Map() noexcept {
@@ -34,10 +34,16 @@ class Map {
         }
     }
 
-    void insert(elem &&pair) {
+    void insert(const elem &pair) {
         SemLock lock(SharedLinearMemory::get_instance().get_semaphore());
-        _map->insert(std::forward<elem>(pair));
+        _map->insert(pair);
     }
+
+    void insert(const elem &&pair) {
+        SemLock lock(SharedLinearMemory::get_instance().get_semaphore());
+        _map->insert(std::move(pair));
+    }
+
 
     void erase(const Key &key) {
         SemLock lock(SharedLinearMemory::get_instance().get_semaphore());
@@ -46,7 +52,12 @@ class Map {
 
     T &operator[](Key &&key) {
         SemLock lock(SharedLinearMemory::get_instance().get_semaphore());
-        return (*_map)[std::forward<Key>(key)];
+        return (*_map)[std::move(key)];
+    }
+
+    T &operator[](Key &key) {
+        SemLock lock(SharedLinearMemory::get_instance().get_semaphore());
+        return (*_map)[key];
     }
 
     auto begin() { return _map->begin(); }
