@@ -1,16 +1,8 @@
-cmake_minimum_required(VERSION 3.13)
-project(project)
+cmake_minimum_required(VERSION 3.16)
+project(TechnoPark)
 set(CMAKE_CXX_STANDARD 17)
-
-#lib process
-add_subdirectory(src/Process)
-
-#lib log
-add_subdirectory(src/Logger)
-
-#lib tcp
-add_subdirectory(src/tcp)
-
+#libs
+add_subdirectory(libs)
 #examples
 add_subdirectory(examples)
 

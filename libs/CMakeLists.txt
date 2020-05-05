@@ -1,0 +1,6 @@
+add_subdirectory(Process)
+add_subdirectory(Descriptor)
+add_subdirectory(BaseException)
+add_subdirectory(Logger)
+add_subdirectory(Tcp)
+add_subdirectory(EpollTcp)

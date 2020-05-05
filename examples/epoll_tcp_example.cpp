@@ -1,41 +1,41 @@
-#include <StderrLogger.h>
 #include "EpollServer.h"
 #include "Logger.h"
 
+#include <BaseException.h>
+#include <StderrLogger.h>
+
+using tp::logger::debug;
+using tp::logger::info;
+
 int main() {
-    logger::Logger& LOG = logger::Logger::get_instance();
-    char read[] = "Hello! By!";
-    tcp::callback create_handler = [](tcp::Connection& con) {
-        char write_data[] = "Hello! By!";
-        con.set_cache_size(sizeof(read), sizeof(write_data), write_data);
-        logger::info("new connection");
-        logger::info("dst_ip: " + con.get_dst_ip());
-        logger::info("dst_port: " + std::to_string(con.get_dst_port()));
+    tp::logger::Logger& LOG = tp::logger::Logger::get_instance();
+    tp::epolltcp::callback create_handler = [](tp::epolltcp::EpollConnection& con) {
+        std::string write_data = "Hello! By!";
+        con.set_cache_size(20, write_data.size(), write_data.data());
+        info("new connection");
+        info("dst_ip: " + con.get_dst_ip());
+        info("dst_port: " + std::to_string(con.get_dst_port()));
     };
 
-    tcp::callback read_handler = [](tcp::Connection& con) {
-        char *read_data = new char[con.get_cache_size_read()];
-        size_t len = con.read(read_data, sizeof(con.get_cache_size_read()));
-        con.add_cache_read(read_data, len);
-        logger::debug(std::string("read: ") + read_data);
-        delete[] read_data;
+    tp::epolltcp::callback read_handler = [](tp::epolltcp::EpollConnection& con) {
+        std::string read_data;
+        read_data.resize(con.get_cache_size_read());
+        size_t len = con.read(read_data.data(), con.get_cache_size_read());
+        if (len != 0) {
+            debug(std::string("read: ") + con.get_cache_read());
+        }
     };
 
-    tcp::callback write_handler = [](tcp::Connection& con) {
+    tp::epolltcp::callback write_handler = [](tp::epolltcp::EpollConnection& con) {
         size_t len = con.write(con.get_cache_write(), con.get_cache_size_write());
-        con.del_cache_write(len);
-        logger::debug(std::string("send: ") + std::to_string(len));
+        debug(std::string("send: ") + std::to_string(len));
     };
 
-    tcp::Handlers handlers = {create_handler, read_handler, write_handler};
+    tp::epolltcp::Handlers handlers = {create_handler, read_handler, write_handler};
     try {
-        LOG.set_global_logger(create_stdout_logger(logger::Level::DEBUG));
-        tcp::EpollServer serv(9625, handlers);
+        LOG.set_global_logger(create_stdout_logger(tp::logger::Level::DEBUG));
+        tp::epolltcp::EpollServer serv(9625, handlers);
         serv.event_loop(10);
-    }
-    catch (tcp::TcpException& e) {
-        logger::StderrLogger{logger::Level::ERROR}.error(e.what());
-    }
+    } catch (tp::BaseException& e) { tp::logger::StderrLogger{tp::logger::Level::ERROR}.error(e.what()); }
     return 0;
 }
-

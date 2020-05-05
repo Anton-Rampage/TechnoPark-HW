@@ -21,8 +21,17 @@ int main() {
         std::string write_data = "Hello!";
         debug("send 1: " + std::to_string(con_1.write(write_data.c_str(), write_data.size() + 1)));
 
-        char read_data[8]{};
-        con_1.read(read_data, sizeof(read_data));
+        std::string read_data;
+        read_data.resize(6);
+        con_1.read(read_data.data(), read_data.size());
+        debug(std::string("from 1: ") + read_data);
+
+        write_data = "By!";
+        debug("send 1: " + std::to_string(con_1.write(write_data.c_str(), write_data.size())));
+
+        read_data.clear();
+        read_data.resize(4);
+        con_1.read(read_data.data(), read_data.size());
         debug(std::string("from 1: ") + read_data);
     } catch (tp::BaseException& e) { tp::logger::StderrLogger{tp::logger::Level::ERROR}.error(e.what()); }
 }

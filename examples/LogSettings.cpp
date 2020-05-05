@@ -1,38 +1,23 @@
 #include "LogSettings.h"
+
 #include <getopt.h>
-#include <vector>
 #include <iostream>
+#include <vector>
 
-LogSettings::LogSettings(logger::Level level,
-                         LogStream stream,
-                         std::string file_path)
-    : _level(level)
-    , _log_stream(stream)
-    , _file_path(std::move(file_path)) {}
+LogSettings::LogSettings(tp::logger::Level level, LogStream stream, std::string file_path)
+    : _level(level), _log_stream(stream), _file_path(std::move(file_path)) {}
 
-void LogSettings::set_level(logger::Level level) {
-    _level = level;
-}
+void LogSettings::set_level(tp::logger::Level level) { _level = level; }
 
-void LogSettings::set_stream(LogStream stream) {
-    _log_stream = stream;
-}
+void LogSettings::set_stream(LogStream stream) { _log_stream = stream; }
 
-void LogSettings::set_path(std::string path) {
-    _file_path = std::move(path);
-}
+void LogSettings::set_path(std::string path) { _file_path = std::move(path); }
 
-logger::Level LogSettings::get_level() const {
-    return _level;
-}
+tp::logger::Level LogSettings::get_level() const { return _level; }
 
-LogStream LogSettings::get_stream() const {
-    return _log_stream;
-}
+LogStream LogSettings::get_stream() const { return _log_stream; }
 
-std::string LogSettings::get_path() const {
-    return _file_path;
-}
+std::string LogSettings::get_path() const { return _file_path; }
 
 size_t get_level_from_string(const char *str) {
     std::vector<std::string> levels = {"error", "warn", "info", "debug"};
@@ -51,19 +36,14 @@ void display_usage() {
               << "if no opts use default settings is stdout and warn" << std::endl;
 }
 
-int set_settings(int argc, char **argv, LogSettings& settings) {
+int set_settings(int argc, char **argv, LogSettings &settings) {
     if (argc == 1) {
         return 0;
     }
 
-    struct option opts[] = {
-            {"log-level",     1, nullptr, 'l'},
-            {"log-to-file",   1, nullptr, 0},
-            {"log-to-stdout", 0, nullptr, 0},
-            {"log-to-stderr", 0, nullptr, 0},
-            {"help",          0, nullptr, 'h'},
-            {nullptr,         0, nullptr, 0}
-    };
+    struct option opts[] = {{"log-level", 1, nullptr, 'l'},   {"log-to-file", 1, nullptr, 0},
+                            {"log-to-stdout", 0, nullptr, 0}, {"log-to-stderr", 0, nullptr, 0},
+                            {"help", 0, nullptr, 'h'},        {nullptr, 0, nullptr, 0}};
 
     const char *opt_string = "l:h";
     int opt_index = 0;
@@ -77,7 +57,7 @@ int set_settings(int argc, char **argv, LogSettings& settings) {
                 std::cout << "error params" << std::endl;
                 return 1;
             }
-            settings.set_level(static_cast<logger::Level>(level));
+            settings.set_level(static_cast<tp::logger::Level>(level));
         } else if (opt == 'h') {
             display_usage();
             return 2;
