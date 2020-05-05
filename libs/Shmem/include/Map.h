@@ -2,18 +2,19 @@
 #define INCLUDE_SHMEM_MAP_H_
 
 #include "Shalloc.h"
-#include <sys/mman.h>
-#include <map>
+
 #include <iostream>
-#include <scoped_allocator>
+#include <map>
 #include <memory>
+#include <scoped_allocator>
+#include <sys/mman.h>
 
-
+namespace tp {
 namespace shmem {
 
 using string = std::basic_string<char, std::char_traits<char>, Shalloc<char>>;
 
-template<typename Key, typename T, typename Compare = std::less<Key>>
+template <typename Key, typename T, typename Compare = std::less<Key>>
 class Map {
  public:
     using elem = std::pair<const Key, T>;
@@ -44,7 +45,6 @@ class Map {
         _map->insert(std::move(pair));
     }
 
-
     void erase(const Key &key) {
         SemLock lock(SharedLinearMemory::get_instance().get_semaphore());
         return _map->erase(key);
@@ -70,12 +70,9 @@ class Map {
 
  private:
     TempMap *_map;
-    size_t mmap_size;
-    void *_mmap;  // save it to free in destructor
     pid_t _parent_pid;
 };
-
-
 }  // namespace shmem
+}  // namespace tp
 
 #endif  // INCLUDE_SHMEM_MAP_H_

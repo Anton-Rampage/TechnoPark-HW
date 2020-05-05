@@ -1,11 +1,11 @@
 add_library(shmem INTERFACE)
 target_sources(shmem INTERFACE
-        Map.h
-        Shalloc.h
+        include/Map.h
+        include/Shalloc.h
         )
 
 target_include_directories(shmem INTERFACE
-        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/shmem>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         )
 
 target_link_libraries(shmem INTERFACE pthread)

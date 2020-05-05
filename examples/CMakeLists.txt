@@ -22,5 +22,5 @@ target_link_libraries(epoll_client tcp logger)
 
 #shmem_example
 add_executable(shmem_example shmem_example.cpp)
-target_link_libraries(shmem_example shmem logger)
+target_link_libraries(shmem_example shmem logger exception)
 

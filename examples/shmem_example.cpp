@@ -1,21 +1,23 @@
+#include "BaseException.h"
+#include "Logger.h"
 #include "Map.h"
+
+#include <StderrLogger.h>
 #include <unistd.h>
 #include <wait.h>
-#include <StderrLogger.h>
-#include "Logger.h"
 
-
+using tp::logger::debug;
 int main() {
-    shmem::SharedLinearMemory::get_instance(1024);
-    logger::Logger &LOG = logger::Logger::get_instance();
+    tp::shmem::SharedLinearMemory::get_instance(1024);
+    tp::logger::Logger &LOG = tp::logger::Logger::get_instance();
     try {
-        LOG.set_global_logger(create_stdout_logger(logger::Level::DEBUG));
+        LOG.set_global_logger(create_stdout_logger(tp::logger::Level::DEBUG));
 
-        shmem::Map<int, shmem::string> map;
+        tp::shmem::Map<int, tp::shmem::string> map;
 
         pid_t child = fork();
         if (child < 0) {
-            throw shmem::Exception("fork failed");
+            throw tp::BaseException("fork failed");
         } else if (child) {
             map[3] = "tri";
             map[4] = "chetiri";
@@ -27,13 +29,9 @@ int main() {
             return 0;
         }
         waitpid(child, nullptr, 0);
-        for (const auto&[key, value] : map) {
-            logger::debug(std::to_string(key) + ' ' + std::string(value));
+        for (const auto &[key, value] : map) {
+            debug(std::to_string(key) + ' ' + std::string(value));
         }
-    } catch (shmem::Exception &e) {
-        logger::StderrLogger{logger::Level::ERROR}.error(e.what());
-    }
+    } catch (tp::BaseException &e) { tp::logger::StderrLogger{tp::logger::Level::ERROR}.error(e.what()); }
     return 0;
-
 }
-
