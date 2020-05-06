@@ -2,6 +2,9 @@
 
 #include "BaseException.h"
 
+#include <chrono>
+#include <iomanip>
+
 namespace tp {
 namespace logger {
 FileLogger::FileLogger(Level level, const std::string &filename) : BaseLogger(level), _log_file(filename) {
@@ -12,7 +15,9 @@ FileLogger::FileLogger(Level level, const std::string &filename) : BaseLogger(le
 
 void FileLogger::log(const std::string &str, Level log_level) {
     if (log_level <= level()) {
-        _log_file << level_str[static_cast<int>(log_level) - 1] << ' ' << str << std::endl;
+        auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        _log_file << "[" << std::put_time(std::localtime(&time), "%X") << "] "
+                  << level_str[static_cast<int>(log_level) - 1] << ' ' << str << std::endl;
     }
 }
 
