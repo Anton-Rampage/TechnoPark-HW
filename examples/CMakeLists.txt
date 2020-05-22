@@ -12,10 +12,13 @@ add_executable(tcp_server tcp_server.cpp)
 target_link_libraries(tcp_server tcp logger)
 
 add_executable(tcp_client tcp_client.cpp)
-target_link_libraries(tcp_client tcp logger)
+target_link_libraries(tcp_client tcp logger pthread)
 
 add_executable(epoll_server epoll_tcp_example.cpp)
 target_link_libraries(epoll_server epoll logger)
 
 add_executable(epoll_client client_for_epoll.cpp)
 target_link_libraries(epoll_client tcp logger)
+
+add_executable(http_example http_example.cpp)
+target_link_libraries(http_example http logger)
