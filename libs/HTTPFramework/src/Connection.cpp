@@ -60,19 +60,30 @@ size_t Connection::read(void *data, size_t len) {
     return size;
 }
 
-// void Connection::write_exact(const void *data, size_t len) {
-//    ssize_t write_length = 0;
-//    while (write_length < len) {
-//        write_length += write(static_cast<const char *>(data) + write_length, len - write_length);
-//    }
-//}
-//
-// void Connection::read_exact(void *data, size_t len) {
-//    ssize_t read_length = 0;
-//    while (_readable && read_length < len) {
-//        read_length += read(static_cast<char *>(data) + read_length, len - read_length);
-//    }
-//}
+ void Connection::write_exact(const char *data, size_t write_size) {
+     while (true) {
+         size_t len = write(data, write_size);
+         if (len < write_size) {
+             write_size -= len;
+             data += len;
+         } else {
+             break;
+         }
+     }
+}
+
+ std::string Connection::read_exact() {
+     std::string request;
+     while (true) {
+         char read_buffer[1024]{};
+         read(read_buffer, sizeof(read_buffer));
+         request += read_buffer;
+         if (errno == EAGAIN) {
+             break;
+         }
+     }
+     return request;
+}
 
 bool Connection::is_readable() const { return _readable; }
 

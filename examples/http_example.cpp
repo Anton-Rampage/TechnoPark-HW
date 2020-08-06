@@ -3,7 +3,6 @@
 #include "Server.h"
 
 #include <StderrLogger.h>
-#include <csignal>
 using tp::logger::info;
 
 
@@ -12,10 +11,9 @@ bool open = true;
 
 int main() {
     try {
-
         auto& LOG = tp::logger::Logger::get_instance();
         LOG.set_global_logger(tp::logger::create_stdout_logger(tp::logger::Level::DEBUG));
-        tp::http::Server server(4);
+        tp::http::Server server(8);
 
         server.run();
         server.stop();

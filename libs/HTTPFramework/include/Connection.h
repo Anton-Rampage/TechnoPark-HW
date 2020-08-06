@@ -18,8 +18,8 @@ class Connection {
 
     size_t write(const void* data, size_t len);
     size_t read(void* data, size_t len);
-//    void write_exact(const void* data, size_t len);
-//    void read_exact(void* data, size_t len);
+    void write_exact(const char *data, size_t write_size);
+    std::string read_exact();
 
     [[nodiscard]] bool is_readable() const;
     explicit Connection(Descriptor&& fd);

@@ -3,151 +3,122 @@
 #include "BaseException.h"
 #include "Connection.h"
 #include "Coroutine.h"
+#include "Epoll.h"
+#include "Logger.h"
 
-#include <csignal>
 #include <cstring>
 #include <iostream>
 #include <netinet/in.h>
-#include <sys/epoll.h>
 #include <sys/socket.h>
 
-namespace tp {
-namespace http {
-//static std::atomic<bool> opened = true;
 
-Server::Server(size_t number_of_thread) {
+namespace tp {
+using tp::logger::debug;
+using tp::logger::error;
+namespace http {
+
+Server::Server(size_t number_of_thread) : logger(logger::Logger::get_instance()) {
     if (number_of_thread <= 0) {
         throw BaseException("wrong number of threads");
     }
-    _thread_pool.reserve(8);
+    _thread_pool.reserve(number_of_thread);
     _number_of_threads = number_of_thread;
-    volatile static std::sig_atomic_t opened = 1;
+    logger.set_global_logger(tp::logger::create_stdout_logger(tp::logger::Level::DEBUG));
 }
 
 Server::~Server() = default;
 
-void Server::epoll_action(int epoll_fd, uint32_t cor, int fd, uint32_t events, int action) {
-    epoll_event event{};
-    event.data.u32 = cor;
-    event.events = events;
-
-    if (epoll_ctl(epoll_fd, action, fd, &event) < 0) {
-        throw BaseException("epoll_ctl failed");
-    }
-}
-
 void Server::run() {
-    Server::opened = 1;
-    std::signal(SIGTERM, Server::signal_handler);
-    std::signal(SIGINT, Server::signal_handler);
     for (size_t i = 0; i < _number_of_threads; ++i) {
         _thread_pool.emplace_back(&Server::loop, this);
     }
 }
 
 void Server::loop() {
-    Descriptor epoll_fd(epoll_create(1));
-    if (epoll_fd < 0) {
-        throw BaseException("epoll not created");
-    }
+    constexpr size_t epoll_size = 100;
+    Epoll epoll(epoll_size);
     Descriptor server_fd = std::move(create_server());
 
-    epoll_action(epoll_fd.get(), coroutine::current(), server_fd.get(), EPOLLIN | EPOLLEXCLUSIVE, EPOLL_CTL_ADD);
-    constexpr size_t epoll_size = 16;
-    std::vector<epoll_event> events(epoll_size);
-    while (Server::is_opened() == 1) {
-        int nfds = epoll_wait(epoll_fd.get(), events.data(), epoll_size, 50);
+    auto cur_coroutine = coroutine::current();
+    epoll.add(cur_coroutine, server_fd.get(), EPOLLIN);
+
+    while (true) {
+        int nfds = epoll.wait();
+
         if (nfds < 0) {
             if (errno == EINTR) {
                 continue;
             }
             throw BaseException("epoll_wait failed");
         }
+        if (nfds > 0) {
+            debug(std::to_string(nfds));
+        }
 
         for (size_t i = 0; i < nfds; ++i) {
-            int cor = events[i].data.u32;
-            uint32_t ev = events[i].events;
+
+            int cor = epoll.epoll_events[i].data.u32;
+            uint32_t ev = epoll.epoll_events[i].events;
             try {
-                if (cor == coroutine::current()) {
-                    coroutine::create_and_run(&Server::connection_routine, this, epoll_fd.get(), server_fd.get());
+                if (cor == cur_coroutine) {
+                    coroutine::create_and_run(&Server::connection_routine, this, std::ref(epoll), server_fd.get());
                 } else {
                     if (ev & EPOLLERR || ev & EPOLLHUP) {
-                        std::cout << "error" <<std::endl;
+                        std::cout << "error" << std::endl;
                         continue;
                     }
                     coroutine::resume(cor);
                 }
-            } catch (tp::BaseException& e) { std::cout << e.what() << std::endl; }
+            } catch (tp::BaseException& e) { error(e.what()); }
         }
     }
 }
 
-void Server::connection_routine(int epoll_fd, int server_fd) {
+void Server::connection_routine(Epoll& epoll, int server_fd) {
     // init connection
-    sockaddr_in client_addr{};
-    socklen_t addr_size = sizeof(client_addr);
-    Descriptor fd(::accept4(server_fd, reinterpret_cast<sockaddr*>(&client_addr), &addr_size, SOCK_NONBLOCK));
-    if (fd < 0) {
-        if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
-            return;
-        }
-        throw BaseException("accept4 failed");
+    Connection connection = accept(server_fd);
+    if (!connection.is_readable()) {
+        return;
     }
-    epoll_action(epoll_fd, coroutine::current(), fd.get(), EPOLLIN | EPOLLET | EPOLLONESHOT, EPOLL_CTL_ADD);
 
-    int buf_fd = fd.get();
-    Connection connection(std::move(fd));
+    auto cur_coroutine = coroutine::current();
+    int buf_fd = connection._fd.get();
+    epoll.add(cur_coroutine, buf_fd, EPOLLIN);
+    std::string response;
 
     while (true) {
-        coroutine::yield();
         // read
-        std::string request;
-        while (true) {
-            char read_buffer[1024]{};
-            connection.read(read_buffer, sizeof(read_buffer));
-            request += read_buffer;
-            if (!connection.is_readable()) {
-                epoll_action(epoll_fd, coroutine::current(), buf_fd, EPOLLOUT | EPOLLET | EPOLLONESHOT, EPOLL_CTL_DEL);
-                return;
-            }
-            if (errno == EAGAIN) {
-                break;
-            }
+        coroutine::yield();
+        std::string request = std::move(connection.read_exact());
+        if (!connection.is_readable()) {
+            epoll.del(cur_coroutine, buf_fd, EPOLLOUT);
+            break;
         }
+        epoll.mod(cur_coroutine, buf_fd, EPOLLOUT);
+        debug("read" + request);
 
-        epoll_action(epoll_fd, coroutine::current(), buf_fd, EPOLLOUT | EPOLLET | EPOLLONESHOT, EPOLL_CTL_MOD);
+        // write
         coroutine::yield();
         HttpRequest parse_request(request);
         parse_request.parse();
         HttpResponse http_response = on_request(parse_request);
-        const char* response = http_response.get();
-        // write
-
-        size_t write_size = strlen(response);
-        while (true) {
-            size_t len = connection.write(response, write_size);
-            if (len < write_size) {
-                write_size -= len;
-                response += len;
-                epoll_action(epoll_fd, coroutine::current(), buf_fd, EPOLLOUT | EPOLLET | EPOLLONESHOT, EPOLL_CTL_MOD);
-                coroutine::yield();
-            } else {
-                break;
-            }
-        }
+        response = http_response.get();
+        connection.write_exact(response.data(), response.size());
 
         if (parse_request.is_continue) {
-            epoll_action(epoll_fd, coroutine::current(), buf_fd, EPOLLIN | EPOLLET | EPOLLONESHOT, EPOLL_CTL_MOD);
+            epoll.mod(cur_coroutine, buf_fd, EPOLLIN);
             continue;
         }
         break;
     }
-    epoll_action(epoll_fd, coroutine::current(), buf_fd, EPOLLOUT | EPOLLET | EPOLLONESHOT, EPOLL_CTL_DEL);
+    epoll.del(cur_coroutine, buf_fd, EPOLLOUT);
 
+    debug(std::string ("response") + response);
+    debug("complete");
 }
 
 void Server::stop() {
-//    opened = false;
+    //    opened = false;
     for (auto& thread : _thread_pool) {
         if (thread.joinable()) {
             thread.join();
@@ -184,16 +155,20 @@ Descriptor Server::create_server() {
 HttpResponse Server::on_request(const HttpRequest& req) {
     return HttpResponse("HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nConnection: Keep-Alive\r\n\r\n");
 }
-auto& Server::is_opened() {
-    volatile static std::sig_atomic_t opened = 1;
-    return opened;
+Connection Server::accept(int server_fd) {
+    sockaddr_in client_addr{};
+    socklen_t addr_size = sizeof(client_addr);
+    Descriptor fd(::accept4(server_fd, reinterpret_cast<sockaddr*>(&client_addr), &addr_size, SOCK_NONBLOCK));
+    if (fd < 0) {
+        if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+            return Connection();
+        }
+        throw BaseException("accept4 failed");
+    }
+    Connection connection(std::move(fd));
+    return connection;
 }
-
-auto&& Server::is_opened() {
-    volatile static std::sig_atomic_t opened = 1;
-    return opened;
-}
-//bool Server::is_opened() { return opened; }
+std::string Server::read_full() { return std::string(); }
 
 }  // namespace http
 }  // namespace tp
